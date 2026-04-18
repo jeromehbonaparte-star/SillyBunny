@@ -673,6 +673,19 @@ async function activateExtensions() {
 
     await Promise.allSettled(promises);
     $('#extensions_details').toggleClass('warning', extensionLoadErrors.size > 0);
+
+    // [QR-DEBUG] Report whether quick-reply was discovered, disabled, or activated.
+    try {
+        const allNames = Object.keys(manifests);
+        const qrKey = allNames.find(n => n === 'quick-reply' || n.endsWith('/quick-reply') || n.includes('quick-reply'));
+        const qrActive = qrKey ? activeExtensions.has(qrKey) : false;
+        const qrDisabled = qrKey ? extension_settings.disabledExtensions.includes(qrKey) : null;
+        const msg = `QR loader: discovered=${!!qrKey} (key="${qrKey}"), disabled=${qrDisabled}, active=${qrActive}, totalManifests=${allNames.length}`;
+        console.log('[QR-DEBUG]', msg, 'allNames=', allNames);
+        if (typeof toastr !== 'undefined') {
+            toastr.info(msg, 'QR loader diag', { timeOut: 20000, extendedTimeOut: 20000 });
+        }
+    } catch (e) { console.error('[QR-DEBUG] loader-probe failed', e); }
 }
 
 async function connectClickHandler() {

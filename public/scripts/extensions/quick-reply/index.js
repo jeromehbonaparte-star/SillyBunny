@@ -230,7 +230,23 @@ const finalizeInit = async () => {
     isReady = true;
     debug('READY');
 };
-await init();
+// [QR-DEBUG] Surface init failures + disabled state as user-visible toasts.
+try {
+    const isDisabled = (await import('../../extensions.js')).extension_settings?.disabledExtensions?.includes?.('quick-reply');
+    if (typeof toastr !== 'undefined') {
+        toastr.info(`QR debug: disabled=${isDisabled}, container=${!!document.querySelector('#qr_container')}`, 'Quick Reply diag', { timeOut: 15000 });
+    }
+    await init();
+    if (typeof toastr !== 'undefined') {
+        toastr.success('Quick Reply init completed successfully', 'Quick Reply diag', { timeOut: 10000 });
+    }
+} catch (e) {
+    console.error('[QR-DEBUG] init threw:', e);
+    if (typeof toastr !== 'undefined') {
+        toastr.error(`QR init error: ${e?.message || e}`, 'Quick Reply FAIL', { timeOut: 30000, extendedTimeOut: 30000 });
+    }
+    throw e;
+}
 
 const purgeCharacterQuickReplySets = ({ character }) => {
     // Remove the character's Quick Reply Sets from the settings.
