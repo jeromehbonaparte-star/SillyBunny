@@ -53,11 +53,36 @@ export let quickReplyApi;
 
 
 const loadSets = async () => {
-    const response = await fetch('/api/settings/get', {
+    // [QR-DEBUG] Race the fetch against a 10s timeout and probe response headers.
+    const toast = (m) => { if (typeof toastr !== 'undefined') toastr.info(m, 'QR fetch', { timeOut: 25000 }); console.log('[QR-DEBUG]', m); };
+    toast('loadSets: about to fetch /api/settings/get, token=' + (window.token ? 'present' : 'MISSING') + ' len=' + (window.token?.length ?? 0));
+
+    const fetchPromise = fetch('/api/settings/get', {
         method: 'POST',
         headers: getRequestHeaders(),
         body: JSON.stringify({}),
     });
+
+    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT 10s')), 10000));
+
+    let response;
+    try {
+        response = await Promise.race([fetchPromise, timeoutPromise]);
+        toast(`fetch settled: status=${response.status} ok=${response.ok}`);
+    } catch (e) {
+        toast(`fetch FAILED: ${e.message}`);
+        // Fire a parallel probe with no headers to isolate CSRF issue
+        try {
+            const probe = await Promise.race([
+                fetch('/api/settings/get', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('probe TIMEOUT 10s')), 10000)),
+            ]);
+            toast(`noCSRF probe: status=${probe.status}`);
+        } catch (pe) {
+            toast(`noCSRF probe FAILED: ${pe.message}`);
+        }
+        throw e;
+    }
 
     if (response.ok) {
         const setList = (await response.json()).quickReplyPresets ?? [];
