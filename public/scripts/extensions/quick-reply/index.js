@@ -85,7 +85,10 @@ const loadSets = async () => {
     }
 
     if (response.ok) {
-        const setList = (await response.json()).quickReplyPresets ?? [];
+        toast('parse: await response.json()');
+        const parsed = await response.json();
+        const setList = parsed.quickReplyPresets ?? [];
+        toast(`parse done: setList.length=${setList.length}, keys=${Object.keys(parsed).length}`);
         for (const set of setList) {
             if (set.version !== 2) {
                 // migrate old QR set
@@ -120,11 +123,14 @@ const loadSets = async () => {
             }
         }
         // need to load QR lists after all sets are loaded to be able to resolve context menu entries
+        toast('before dyn-import QuickReply.js');
         const { QuickReply } = await import('./src/QuickReply.js');
+        toast(`dyn-import done: QuickReply=${typeof QuickReply}`);
         setList.forEach((set, idx) => {
             QuickReplySet.list[idx].qrList = set.qrList.map(it => QuickReply.from(it));
             QuickReplySet.list[idx].init();
         });
+        toast(`loadSets done: listSize=${QuickReplySet.list.length}`);
         log('sets: ', QuickReplySet.list);
     }
 };
