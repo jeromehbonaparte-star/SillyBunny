@@ -171,15 +171,33 @@ const handleCharChange = () => {
 };
 
 const init = async () => {
+    // [QR-DEBUG] Per-step toasts to isolate where init hangs.
+    const dbg = (msg) => {
+        console.log('[QR-DEBUG]', msg);
+        if (typeof toastr !== 'undefined') toastr.info(msg, 'QR step', { timeOut: 20000 });
+    };
+    dbg('step1: await loadSets()');
     await loadSets();
+    dbg('step2: await loadSettings()');
     await loadSettings();
+    dbg('step3: new SettingsUi(settings)');
     log('settings: ', settings);
 
     manager = new SettingsUi(settings);
-    document.querySelector('#qr_container').append(await manager.render());
+    dbg('step4: querySelector(#qr_container)');
+    const qrContainer = document.querySelector('#qr_container');
+    dbg(`step4b: qrContainer=${!!qrContainer}, isConnected=${qrContainer?.isConnected}`);
+    dbg('step5: await manager.render()');
+    const rendered = await manager.render();
+    dbg(`step5b: rendered=${!!rendered}`);
+    dbg('step6: container.append(rendered)');
+    qrContainer.append(rendered);
+    dbg('step7: new ButtonUi(settings)');
 
     buttons = new ButtonUi(settings);
+    dbg('step8: buttons.show()');
     buttons.show();
+    dbg('step9: onSave bound');
     settings.onSave = () => buttons.refresh();
 
     globalThis.executeQuickReplyByName = async (name, args = {}, options = {}) => {
