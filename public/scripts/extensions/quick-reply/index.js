@@ -124,8 +124,27 @@ const loadSets = async () => {
         }
         // need to load QR lists after all sets are loaded to be able to resolve context menu entries
         toast('before dyn-import QuickReply.js');
-        const { QuickReply } = await import('./src/QuickReply.js');
-        toast(`dyn-import done: QuickReply=${typeof QuickReply}`);
+        // [QR-DEBUG] Probe 1: can we fetch the file as text?
+        try {
+            const r = await Promise.race([
+                fetch('/scripts/extensions/quick-reply/src/QuickReply.js'),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('fetch-probe TIMEOUT 5s')), 5000)),
+            ]);
+            toast(`QR.js fetch probe: status=${r.status} len=${r.headers.get('content-length')}`);
+        } catch (e) { toast(`QR.js fetch probe FAILED: ${e.message}`); }
+        // [QR-DEBUG] Probe 2: race the dynamic import against a timeout
+        let QuickReply;
+        try {
+            const mod = await Promise.race([
+                import('./src/QuickReply.js'),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('dyn-import TIMEOUT 10s')), 10000)),
+            ]);
+            QuickReply = mod.QuickReply;
+            toast(`dyn-import done: QuickReply=${typeof QuickReply}`);
+        } catch (e) {
+            toast(`dyn-import FAILED: ${e.message}`);
+            throw e;
+        }
         setList.forEach((set, idx) => {
             QuickReplySet.list[idx].qrList = set.qrList.map(it => QuickReply.from(it));
             QuickReplySet.list[idx].init();
